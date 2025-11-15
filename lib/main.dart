@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,8 @@ import 'package:unicup_display/pixel_map.dart';
 import 'package:unicup_display/pixel_map_painter.dart';
 import 'package:unicup_display/rendering.dart';
 import 'ble_manager.dart';
+import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -68,6 +71,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Color _currentColor = Colors.blue;
 
+  String currentTime = "";
+  Timer? timer;
+  bool timeEnabed = false;
+
 
   @override
   void initState() {
@@ -76,6 +83,20 @@ class _MyHomePageState extends State<MyHomePage> {
     bleManager = BleManager(flutterReactiveBle);
 
     _updatePixelMap("ET Lions");
+
+    timer = Timer.periodic(Duration(seconds: 1), (_) {
+      setState(() {
+        var now = DateTime.now();
+        if(now.second % 2 == 0){
+          currentTime = "${now.hour}:${now.minute}";
+        }else{
+          currentTime = "${now.hour} ${now.minute}";
+        }
+        if(timeEnabed && bleManager.isConnected){
+          _updatePixelMap(currentTime);
+        }
+      });
+    });
   }
 
     @override
@@ -84,18 +105,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
-
-  Future<void> _updatePixelMap(String text) async {
-    setState(() {
-      pixelMapText = text;
-    });
-
-    try {
-      final map = await textToPixelMap(text, _pixelMapTextSize, _currentColor);
-      if (!mounted) return;
-      setState(() {
-        _pixelMap = map;
-      });
+  Future<void> _sendPixelMap() async {
 
       if(!bleManager.isConnected){
         Fluttertoast.showToast(
@@ -107,6 +117,10 @@ class _MyHomePageState extends State<MyHomePage> {
           textColor: Colors.red,
           fontSize: 15.0,
         );
+        return;
+      }
+
+      if(_pixelMap == null){
         return;
       }
 
@@ -125,7 +139,7 @@ class _MyHomePageState extends State<MyHomePage> {
             continue;
           }
 
-          Uint8List lineData =  map.getRawLine(y);
+          Uint8List lineData =  _pixelMap!.getRawLine(y);
 
           data[offset] = y;
           offset += 1;
@@ -137,6 +151,21 @@ class _MyHomePageState extends State<MyHomePage> {
         
         await bleManager.writeWithoutResponse(3, data);
       }
+  }
+
+  Future<void> _updatePixelMap(String text) async {
+    setState(() {
+      pixelMapText = text;
+    });
+
+    try {
+      final map = await textToPixelMap(text, _pixelMapTextSize, _currentColor);
+      if (!mounted) return;
+      setState(() {
+        _pixelMap = map;
+      });
+
+      _sendPixelMap();
       
     } finally {
     }
@@ -241,6 +270,24 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
 
+
+
+  Future<void> pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    final Uint8List bytes = await picked.readAsBytes();
+    final uiImage = await decodeImageFromList(bytes);
+
+    final scaled = await scaleImageToPixelSize(uiImage,
+      targetWidth: 45, targetHeight: 25);
+
+    // 3. Extract pixels
+    _pixelMap = await imageToPixelMap(scaled);
+
+    _sendPixelMap();
+  }
 
 
 
@@ -365,6 +412,19 @@ Widget build(BuildContext context) {
                 ),
               ),
             ),
+          ),
+
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                timeEnabed = !timeEnabed;
+              });
+            },
+            child: const Text("En/Dis Time"),
+          ),
+          ElevatedButton(
+            onPressed: pickImage,
+            child: const Text("Pick Img"),
           ),
         ],
       ),
