@@ -153,6 +153,16 @@ void startScan() {
           case DeviceConnectionState.connected:
             _deviceId = deviceId;
 
+            Fluttertoast.showToast(
+              msg: "Connected",
+              toastLength: Toast.LENGTH_SHORT,
+              gravity: ToastGravity.CENTER,
+              timeInSecForIosWeb: 5,
+              backgroundColor: Colors.white,
+              textColor: Colors.black,
+              fontSize: 15.0,
+            );
+
             currentMTU = await _ble.requestMtu(
               deviceId: deviceId,
               mtu: 517,

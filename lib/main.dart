@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:unicup_display/device_screen.dart';
@@ -65,6 +66,8 @@ class _MyHomePageState extends State<MyHomePage> {
   
   String pixelMapText = "ET-Lions";
 
+  Color _currentColor = Colors.blue;
+
 
   @override
   void initState() {
@@ -72,7 +75,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     bleManager = BleManager(flutterReactiveBle);
 
-    _updatePixelMap("HELLO");
+    _updatePixelMap("ET Lions");
   }
 
     @override
@@ -88,7 +91,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
     try {
-      final map = await textToPixelMap(text, _pixelMapTextSize);
+      final map = await textToPixelMap(text, _pixelMapTextSize, _currentColor);
       if (!mounted) return;
       setState(() {
         _pixelMap = map;
@@ -132,9 +135,7 @@ class _MyHomePageState extends State<MyHomePage> {
           y++;
         }
         
-        print("sending");
         await bleManager.writeWithoutResponse(3, data);
-        print("sent");
       }
       
     } finally {
@@ -186,6 +187,63 @@ class _MyHomePageState extends State<MyHomePage> {
     bleManager.write(1, [01]);
   }
 
+  void _stopAnimation() {
+    if(!bleManager.isConnected){
+        Fluttertoast.showToast(
+          msg: "Please connect to a device.",
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 5,
+          backgroundColor: Colors.white,
+          textColor: Colors.red,
+          fontSize: 15.0,
+        );
+        return;
+      }
+    bleManager.write(1, [00]);
+  }
+
+
+
+  void _openWheel() {
+    Color temp = _currentColor;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          content: ColorPicker(
+            pickerColor: temp,
+            onColorChanged: (c) => temp = c,
+            pickerAreaHeightPercent: 1.0,
+            enableAlpha: false,
+            paletteType: PaletteType.hsv,   // circular wheel
+            displayThumbColor: true,
+            labelTypes: const [],           // hide RGB/HEX labels
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() => _currentColor = temp);
+                _updatePixelMap(pixelMapText);
+                Navigator.pop(context);
+              },
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+
+
+
 @override
 Widget build(BuildContext context) {
   return Scaffold(
@@ -197,25 +255,78 @@ Widget build(BuildContext context) {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Slider(
-            value: _brightnessValue,
-            min: 0,
-            max: 255,
-            divisions: 255,
-            label: _brightnessValue.round().toString(),
-            onChanged: (value) {
-              setState(() {
-                _brightnessValue = value;
-              });
-            },
-            onChangeEnd: (value) {
-              _setBrightness(value.toInt());
-            },
-          ),
 
-          ElevatedButton(
-            onPressed: _setAnimation,
-            child: const Text('Set animation'),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // BRIGHTNESS
+              Slider(
+                value: _brightnessValue,
+                min: 0,
+                max: 255,
+                divisions: 255,
+                label: _brightnessValue.round().toString(),
+                onChanged: (value) {
+                  setState(() {
+                    _brightnessValue = value;
+                  });
+                },
+                onChangeEnd: (value) {
+                  _setBrightness(value.toInt());
+                },
+              ),
+              
+              // TEXT SIZE
+              Slider(
+                value: _pixelMapTextSize,
+                min: 10,
+                max: 200,
+                divisions: 190,
+                label: _pixelMapTextSize.round().toString(),
+                onChanged: (value) {
+                  setState(() {
+                    _pixelMapTextSize = value;
+                  });
+                },
+                onChangeEnd: (value) {
+                  setState(() {
+                    _pixelMapTextSize = value;
+                  });
+                  _updatePixelMap(pixelMapText);
+                },
+              ),
+            ],
+          ),
+          
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: _setAnimation,
+                child: const Text('Ohne Strom'),
+              ),
+              const SizedBox(width: 5), // optionaler Abstand
+              ElevatedButton(
+                onPressed: _stopAnimation,
+                child: const Text('Stop'),
+              ),
+
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _currentColor,
+                  border: Border.all(color: Colors.grey.shade400),
+                ),
+              ),
+              const SizedBox(width: 5),
+              ElevatedButton(
+                onPressed: _openWheel,
+                child: const Text("Pick Color"),
+              ),
+            ],
           ),
 
 
@@ -223,57 +334,38 @@ Widget build(BuildContext context) {
 
 
           TextField(
-              controller: _controller,
-              decoration: const InputDecoration(
-                labelText: 'Type text to render',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: _updatePixelMap, // live updates as you type
+            controller: _controller,
+            decoration: const InputDecoration(
+              labelText: 'Type text to render',
+              border: OutlineInputBorder(),
             ),
-            Slider(
-            value: _pixelMapTextSize,
-            min: 0,
-            max: 250,
-            divisions: 250,
-            label: _pixelMapTextSize.round().toString(),
-            onChanged: (value) {
-              setState(() {
-                _pixelMapTextSize = value;
-              });
-            },
-            onChangeEnd: (value) {
-              setState(() {
-                _pixelMapTextSize = value;
-              });
-              _updatePixelMap(pixelMapText);
-            },
+            onChanged: _updatePixelMap, // live updates as you type
           ),
-            const SizedBox(height: 16),
-            
-            // The pixel canvas
-            Expanded(
-              child: Center(
-                child: AspectRatio(
-                  aspectRatio: 45 / 25, // keep the same proportions
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                    ),
-                    child: _pixelMap == null
-                        ? const Center(
-                            child: Text(
-                              'Pixel output will appear here',
-                              textAlign: TextAlign.center,
-                            ),
-                          )
-                        : CustomPaint(
-                            painter: PixelMapPainter(_pixelMap!),
-                            // `size` is provided by Layout via AspectRatio+Expanded
-                          ),
+        
+          // The pixel canvas
+          Expanded(
+            child: Center(
+              child: AspectRatio(
+                aspectRatio: 45 / 25, // keep the same proportions
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
                   ),
+                  child: _pixelMap == null
+                      ? const Center(
+                          child: Text(
+                            'Pixel output will appear here',
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      : CustomPaint(
+                          painter: PixelMapPainter(_pixelMap!),
+                          // `size` is provided by Layout via AspectRatio+Expanded
+                        ),
                 ),
               ),
             ),
+          ),
         ],
       ),
     ),

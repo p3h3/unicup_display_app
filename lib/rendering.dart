@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:unicup_display/pixel_map.dart';
 
-Future<ui.Image> renderTextToImage(String text, double size) async {
+Future<ui.Image> renderTextToImage(String text, double size, Color color) async {
   const int workWidth = 450;
   const int workHeight = 250;
 
@@ -20,7 +20,7 @@ Future<ui.Image> renderTextToImage(String text, double size) async {
 
   // Setup text style (pixel/monospace font)
   final textStyle = TextStyle(
-    color: Colors.white,
+    color: color,
     fontFamily: 'PixelFont', // your pixel font
     fontSize: size,            // adjust until it looks good
   );
@@ -122,9 +122,9 @@ Future<PixelMap> imageToPixelMap(ui.Image image) async {
 
 
 
-Future<PixelMap> textToPixelMap(String text, double size) async {
+Future<PixelMap> textToPixelMap(String text, double size, Color color) async {
   // 1. Render high-res text
-  final fullImage = await renderTextToImage(text, size);
+  final fullImage = await renderTextToImage(text, size, color);
 
   // 2. Scale to 45x25
   final scaled = await scaleImageToPixelSize(fullImage,
