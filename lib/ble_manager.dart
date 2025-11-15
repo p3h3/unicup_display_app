@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class BleManager {
   final FlutterReactiveBle _ble;
@@ -23,46 +25,28 @@ class BleManager {
   bool get isConnected => _deviceId != null;
   String? get deviceId => _deviceId;
 
+  var currentMTU = 20;
+
   final List<Map<String, Uuid>> vcuBLECharacteristicIds =  [
-    // General control
+    // Brightness control
     {
-      'serviceId': Uuid.parse("c1911100-51fd-402c-a17a-c09a33fd9c81"),
-      'characteristicId': Uuid.parse("c1911101-51fd-402c-a17a-c09a33fd9c81")
+      'serviceId': Uuid.parse("c1911000-51fd-402c-a17a-c09a33fd9c81"),
+      'characteristicId': Uuid.parse("c1911001-51fd-402c-a17a-c09a33fd9c81")
     },
-    // Bitmap control
+    // Bitmap animation
     {
       'serviceId': Uuid.parse("c1911000-51fd-402c-a17a-c09a33fd9c81"),
       'characteristicId': Uuid.parse("c1911002-51fd-402c-a17a-c09a33fd9c81")
     },
-    // TELEMETRY CONFIG
+    // Bitmap static pic
     {
-      'serviceId': Uuid.parse("ffd70600-fe1b-4b6d-aba1-36cc0bab3e3d"),
-      'characteristicId': Uuid.parse("ffd70602-fe1b-4b6d-aba1-36cc0bab3e3d")
+      'serviceId': Uuid.parse("c1911000-51fd-402c-a17a-c09a33fd9c81"),
+      'characteristicId': Uuid.parse("c1911003-51fd-402c-a17a-c09a33fd9c81")
     },
-    // CONFIG
+    // Bitmap chunk
     {
-      'serviceId': Uuid.parse("ffd70500-fe1b-4b6d-aba1-36cc0bab3e3d"),
-      'characteristicId': Uuid.parse("ffd70501-fe1b-4b6d-aba1-36cc0bab3e3d")
-    },
-    // CANBRIDGE TX
-    {
-      'serviceId': Uuid.parse("ffd70300-fe1b-4b6d-aba1-36cc0bab3e3d"),
-      'characteristicId': Uuid.parse("ffd70301-fe1b-4b6d-aba1-36cc0bab3e3d")
-    },
-    // CANBRIDGE RX CONFIG
-    {
-      'serviceId': Uuid.parse("ffd70300-fe1b-4b6d-aba1-36cc0bab3e3d"),
-      'characteristicId': Uuid.parse("ffd70302-fe1b-4b6d-aba1-36cc0bab3e3d")
-    },
-    // CANBRIDGE RX STREAM
-    {
-      'serviceId': Uuid.parse("ffd70300-fe1b-4b6d-aba1-36cc0bab3e3d"),
-      'characteristicId': Uuid.parse("ffd70303-fe1b-4b6d-aba1-36cc0bab3e3d")
-    },
-    // OTA
-    {
-      'serviceId': Uuid.parse("8d53dc1d-1db7-4cd3-868b-8a527460aa84"),
-      'characteristicId': Uuid.parse("da2e7828-fbce-4e01-ae9e-261174997c48")
+      'serviceId': Uuid.parse("c1911000-51fd-402c-a17a-c09a33fd9c81"),
+      'characteristicId': Uuid.parse("c1911004-51fd-402c-a17a-c09a33fd9c81")
     },
   ];
 
@@ -88,8 +72,12 @@ class BleManager {
 
   Future<void> write(int characteristicIndex, List<int> data) async {
     final char = getCharacteristic(characteristicIndex);
-    print(char);
     await _ble.writeCharacteristicWithResponse(char, value: data);
+  }
+
+  Future<void> writeWithoutResponse(int characteristicIndex, List<int> data) async {
+    final char = getCharacteristic(characteristicIndex);
+    await _ble.writeCharacteristicWithoutResponse(char, value: data);
   }
   
   Stream<List<List<int>>> subscribe(int characteristicIndex) {
@@ -136,7 +124,7 @@ void startScan() {
       final data = device.manufacturerData;
       final id = data.length >= 2 ? (data[1] << 8 | data[0]) : null;
 
-      if (!_devices.any((d) => d.id == device.id)) {
+      if (device.name.contains("led") && !_devices.any((d) => d.id == device.id)) {
         _devices.add(device);
         _scanController.add(List.from(_devices));
       }
@@ -164,6 +152,21 @@ void startScan() {
         switch (update.connectionState) {
           case DeviceConnectionState.connected:
             _deviceId = deviceId;
+
+            currentMTU = await _ble.requestMtu(
+              deviceId: deviceId,
+              mtu: 517,
+            );
+
+            Fluttertoast.showToast(
+              msg: "MTU: " + currentMTU.toString(),
+              toastLength: Toast.LENGTH_SHORT,
+              gravity: ToastGravity.TOP,
+              timeInSecForIosWeb: 5,
+              backgroundColor: Colors.white,
+              textColor: Colors.green,
+              fontSize: 15.0,
+            );
             
             await Future.delayed(const Duration(seconds: 1)); // professional 1s wait because BLE sucks
             onConnected();

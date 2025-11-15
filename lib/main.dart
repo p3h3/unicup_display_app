@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:unicup_display/device_screen.dart';
 import 'package:unicup_display/pixel_map.dart';
 import 'package:unicup_display/pixel_map_painter.dart';
@@ -84,19 +87,56 @@ class _MyHomePageState extends State<MyHomePage> {
       pixelMapText = text;
     });
 
-    if (text.isEmpty) {
-      setState(() {
-        _pixelMap = null;
-      });
-      return;
-    }
-
     try {
       final map = await textToPixelMap(text, _pixelMapTextSize);
       if (!mounted) return;
       setState(() {
         _pixelMap = map;
       });
+
+      if(!bleManager.isConnected){
+        Fluttertoast.showToast(
+          msg: "Please connect to a device.",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 5,
+          backgroundColor: Colors.white,
+          textColor: Colors.red,
+          fontSize: 15.0,
+        );
+        return;
+      }
+
+      int rows_per_packet = ((bleManager.currentMTU - 1) / (1 + 45*3)).floor();
+
+      for(int y = 0; y < 25; y += 0){
+
+        Uint8List data = Uint8List(1 + (1 + 45*3)*rows_per_packet);
+
+        int offset = 0;
+        data[0] = rows_per_packet; // one row will be sent
+        offset += 1;
+
+        for(int row = 0; row < rows_per_packet; row++){
+          if(y >= 25){
+            continue;
+          }
+
+          Uint8List lineData =  map.getRawLine(y);
+
+          data[offset] = y;
+          offset += 1;
+          data.setRange(offset, offset + lineData.length, lineData);
+          offset += lineData.length;
+
+          y++;
+        }
+        
+        print("sending");
+        await bleManager.writeWithoutResponse(3, data);
+        print("sent");
+      }
+      
     } finally {
     }
   }
@@ -115,10 +155,34 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _setBrightness(int value) {
+    if(!bleManager.isConnected){
+        Fluttertoast.showToast(
+          msg: "Please connect to a device.",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 5,
+          backgroundColor: Colors.white,
+          textColor: Colors.red,
+          fontSize: 15.0,
+        );
+        return;
+      }
     bleManager.write(0, [1, value]);
   }
 
   void _setAnimation() {
+    if(!bleManager.isConnected){
+        Fluttertoast.showToast(
+          msg: "Please connect to a device.",
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 5,
+          backgroundColor: Colors.white,
+          textColor: Colors.red,
+          fontSize: 15.0,
+        );
+        return;
+      }
     bleManager.write(1, [01]);
   }
 
