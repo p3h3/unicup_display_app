@@ -429,10 +429,34 @@ Widget build(BuildContext context) {
         ],
       ),
     ),
-    floatingActionButton: FloatingActionButton(
-      onPressed: _connectDevice,
-      tooltip: 'Connect',
-      child: const Icon(Icons.bluetooth),
+
+
+    floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    floatingActionButton: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // LEFT FAB
+        FloatingActionButton(
+          onPressed: _connectDevice,
+          tooltip: 'Connect',
+          child: const Icon(Icons.bluetooth),
+        ),
+
+        // Spacer to keep them at true edges
+        const SizedBox(width: 10),
+
+        // RIGHT FAB
+        FloatingActionButton(
+          onPressed: () {
+            setState(() {
+              _updatePixelMap("");
+            });
+            _controller.clear();
+          },
+          tooltip: 'Delete Map',
+          child: const Icon(Icons.delete),
+        ),
+      ],
     ),
   );
 }
