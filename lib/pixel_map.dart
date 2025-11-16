@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui';
 
@@ -38,4 +39,67 @@ class PixelMap {
 
     return rawPixelData;
   }
+
+
+
+
+
+  // ----------------------------------------------------------
+  //                     EXPORT JSON
+  // ----------------------------------------------------------
+  String exportJson() {
+    if (pixels == null) {
+      throw Exception("PixelMap pixels not initialized");
+    }
+
+    final data = {
+      "width": width,
+      "height": height,
+      "pixels": pixels!.map((row) {
+        return row.map((c) {
+          return {
+            "r": c.r,
+            "g": c.g,
+            "b": c.b,
+            "a": c.a,
+          };
+        }).toList();
+      }).toList(),
+    };
+
+    return jsonEncode(data);
+  }
+
+  // ----------------------------------------------------------
+  //                     IMPORT JSON
+  // ----------------------------------------------------------
+  static PixelMap importJson(String jsonStr) {
+    final decoded = jsonDecode(jsonStr);
+
+    final width = decoded["width"];
+    final height = decoded["height"];
+    final pixelData = decoded["pixels"];
+
+    PixelMap map = PixelMap(width: width, height: height);
+
+    List<List<Color>> px = List.generate(
+      height,
+      (y) => List.generate(
+        width,
+        (x) {
+          final p = pixelData[y][x];
+          return Color.fromARGB(
+            p["a"],
+            p["r"],
+            p["g"],
+            p["b"],
+          );
+        },
+      ),
+    );
+
+    map.fillPixels(px);
+    return map;
+  }
+
 }

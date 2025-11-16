@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:unicup_display/pixel_map.dart';
 import 'package:unicup_display/pixel_map_painter.dart';
 import 'package:unicup_display/rendering.dart';
+import 'package:unicup_display/save_local.dart';
 
 class AnimationCreator extends StatelessWidget {
   const AnimationCreator({super.key});
@@ -21,7 +23,7 @@ class AnimationCreator extends StatelessWidget {
   }
 }
 
-/// Simple model for a frame
+
 class FrameData {
   FrameData({
     required this.pixelMap,
@@ -30,6 +32,49 @@ class FrameData {
 
   PixelMap pixelMap;
   Duration duration;
+
+  // ---------------------------------------
+  //        Export FrameData → JSON Map
+  // ---------------------------------------
+  Map<String, dynamic> toJson() {
+    return {
+      "durationMs": duration.inMilliseconds,
+      "pixelMap": jsonDecode(pixelMap.exportJson()),
+    };
+  }
+
+  // ---------------------------------------
+  //        Import FrameData ← JSON Map
+  // ---------------------------------------
+  static FrameData fromJson(Map<String, dynamic> json) {
+    return FrameData(
+      pixelMap: PixelMap.importJson(jsonEncode(json["pixelMap"])),
+      duration: Duration(milliseconds: json["durationMs"]),
+    );
+  }
+}
+
+// ------------------------------------------------------------
+//         Export a LIST<FrameData> → JSON STRING
+// ------------------------------------------------------------
+String exportFramesJson(List<FrameData> frames) {
+  final data = {
+    "frames": frames.map((f) => f.toJson()).toList(),
+  };
+  return jsonEncode(data);
+}
+
+// ------------------------------------------------------------
+//         Import JSON STRING → LIST<FrameData>
+// ------------------------------------------------------------
+List<FrameData> importFramesJson(String jsonStr) {
+  final decoded = jsonDecode(jsonStr);
+
+  List<dynamic> framesJson = decoded["frames"];
+
+  return framesJson
+      .map((f) => FrameData.fromJson(f))
+      .toList();
 }
 
 class FrameEditorScreen extends StatefulWidget {
@@ -48,6 +93,12 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
   bool _isPlaying = false;
   Color _currentColor = Colors.blue;
   double _pixelMapTextSize = 60;
+
+
+  String? selectedImportFile;
+  List<String> _dropdownItems = [];
+  String? _selectedItem;
+  Timer? _updateTimer;
 
   
   final TextEditingController _controller = TextEditingController();
@@ -121,7 +172,17 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
 
 
   void _saveAnimation(){
-    
+    saveJsonToDownloads(exportFramesJson(_frames), "test.json");
+  }
+
+
+  void listFiles() async {
+    final jsonFiles = await listDownloadFilesByExtension(".json");
+    print("JSON files: $jsonFiles");
+  }
+
+  void _importFile(){
+    // to be implemented
   }
 
 
@@ -130,6 +191,32 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
     super.initState();
     _controller.text = pixelMapText;
     _updatePixelMap(pixelMapText);
+
+
+    _updateTimer = Timer.periodic(Duration(seconds: 3), (_) {
+      _updateDropdownItems();
+    });
+  }
+
+
+  
+  void _loadInitialItems() {
+    setState(() async {
+      _dropdownItems = await listDownloadFilesByExtension("json");
+    });
+  }
+
+  void _updateDropdownItems() {
+    // Example: append timestamped items
+    setState(() async {
+      _dropdownItems = await listDownloadFilesByExtension("json");
+
+      // ensure selected item is still valid
+      if (!_dropdownItems.contains(_selectedItem)) {
+        _selectedItem = null;
+        selectedImportFile = null;
+      }
+    });
   }
 
 
@@ -282,16 +369,33 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
                   onPressed: hasFrames ? (_isPlaying ? _pause : _play) : null,
                   icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
                 ),
-                const SizedBox(width: 12),
-                Text('Frame: ${hasFrames ? _currentFrameIndex + 1 : 0}'
+                const SizedBox(width: 6),
+                Text('${hasFrames ? _currentFrameIndex + 1 : 0}'
                     '/${_frames.length}'),
                 const Spacer(),
+                DropdownButton<String>(
+                  value: _selectedItem,
+                  hint: const Text("import"),
+                  items: _dropdownItems
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedItem = value;
+                    });
+                    selectedImportFile = value; // store globally
+                  },
+                ),
+                IconButton.filled(
+                  onPressed: _importFile,
+                  icon: Icon(Icons.upload_file),
+                ),
                 IconButton.filled(
                   onPressed: _saveAnimation,
                   icon: Icon(Icons.save),
                 ),
-                const SizedBox(width: 12),
-                Text('Total: $_totalDurationMs ms'),
+                const SizedBox(width: 6),
+                Text('T: $_totalDurationMs ms'),
               ],
             ),
           ),

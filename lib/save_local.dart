@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path/path.dart' as p;
@@ -63,14 +65,68 @@ Future<Directory?> getDownloadsDirectory() async {
 
 
 Future<File?> saveJsonToDownloads(
-    Map<String, dynamic> json, String fileName) async {
+    String json, String fileName) async {
   final hasPermission = await ensureStoragePermission();
-  if (!hasPermission) return null;
+  if (!hasPermission) {
+    Fluttertoast.showToast(
+          msg: "No File Permission!",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 5,
+          backgroundColor: Colors.white,
+          textColor: Colors.red,
+          fontSize: 20.0,
+        );
+    return null;
+  }
 
   final dir = await getDownloadsDirectory();
-  if (dir == null) return null;
+  if (dir == null){
+
+    Fluttertoast.showToast(
+          msg: "No Download Dir!",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 5,
+          backgroundColor: Colors.white,
+          textColor: Colors.red,
+          fontSize: 20.0,
+        );
+
+    return null;
+  } 
+  print(dir);
 
   final file = File(p.join(dir.path, fileName));
-  return file.writeAsString(jsonEncode(json), flush: true);
+  return file.writeAsString(json, flush: true);
 }
 
+
+
+
+
+
+Future<List<String>> listDownloadFiles() async {
+  final hasPermission = await ensureStoragePermission();
+  if (!hasPermission) return [];
+
+  final dir = await getDownloadsDirectory();
+  if (dir == null) return [];
+
+  final downloadsDir = Directory(dir.path);
+
+  if (!await downloadsDir.exists()) return [];
+
+  final entities = downloadsDir.listSync();
+
+  // return only file names, filter out subdirectories
+  return entities
+      .whereType<File>()
+      .map((file) => p.basename(file.path))
+      .toList();
+}
+
+Future<List<String>> listDownloadFilesByExtension(String extension) async {
+  final files = await listDownloadFiles();
+  return files.where((f) => f.toLowerCase().endsWith(extension.toLowerCase())).toList();
+}
