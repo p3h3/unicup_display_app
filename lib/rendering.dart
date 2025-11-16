@@ -114,7 +114,9 @@ Future<PixelMap> imageToPixelMap(ui.Image image) async {
     ),
   );
 
-  return PixelMap(width: width, height: height, pixels: pixels);
+  var pixelMap = PixelMap(width: width, height: height);
+  pixelMap.fillPixels(pixels);
+  return pixelMap;
 }
 
 

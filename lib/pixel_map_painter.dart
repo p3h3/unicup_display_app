@@ -15,7 +15,7 @@ class PixelMapPainter extends CustomPainter {
 
     for (int y = 0; y < pixelMap.height; y++) {
       for (int x = 0; x < pixelMap.width; x++) {
-        paint.color = pixelMap.pixels[y][x];
+        paint.color = pixelMap.pixels![y][x];
         canvas.drawRect(
           Rect.fromLTWH(
             x * pixelWidth,

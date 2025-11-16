@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:unicup_display/pixel_map.dart';
+import 'package:unicup_display/pixel_map_painter.dart';
+import 'package:unicup_display/rendering.dart';
 
 class AnimationCreator extends StatelessWidget {
   const AnimationCreator({super.key});
-
-  
-  @override
+@override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Frame-by-Frame Animation',
@@ -22,11 +24,11 @@ class AnimationCreator extends StatelessWidget {
 /// Simple model for a frame
 class FrameData {
   FrameData({
-    required this.color, // Placeholder for image; replace with your image type
+    required this.pixelMap,
     required this.duration,
   });
 
-  Color color; // In your real app, replace this with an ImageProvider or path
+  PixelMap pixelMap;
   Duration duration;
 }
 
@@ -39,20 +41,86 @@ class FrameEditorScreen extends StatefulWidget {
 
 class _FrameEditorScreenState extends State<FrameEditorScreen> {
   final List<FrameData> _frames = [
-    FrameData(color: Colors.red, duration: const Duration(milliseconds: 200)),
-    FrameData(color: Colors.green, duration: const Duration(milliseconds: 300)),
-    FrameData(color: Colors.blue, duration: const Duration(milliseconds: 400)),
   ];
 
   int _currentFrameIndex = 0;
   Timer? _playbackTimer;
   bool _isPlaying = false;
+  Color _currentColor = Colors.blue;
+  double _pixelMapTextSize = 60;
+
+  
+  final TextEditingController _controller = TextEditingController();
+
+  PixelMap? _pixelMap;
+  
+  String pixelMapText = "test";
 
   @override
   void dispose() {
     _playbackTimer?.cancel();
     super.dispose();
   }
+
+  
+  Future<void> _updatePixelMap(String text) async {
+    setState(() {
+      pixelMapText = text;
+    });
+
+    try {
+      final map = await textToPixelMap(text, _pixelMapTextSize, _currentColor);
+      if (!mounted) return;
+      setState(() {
+        _pixelMap = map;
+      });
+
+      
+    } finally {
+    }
+  }
+
+
+  
+
+  void _openWheel() {
+    Color temp = _currentColor;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          content: ColorPicker(
+            pickerColor: temp,
+            onColorChanged: (c) => temp = c,
+            pickerAreaHeightPercent: 1.0,
+            enableAlpha: false,
+            paletteType: PaletteType.hsv,   // circular wheel
+            displayThumbColor: true,
+            labelTypes: const [],           // hide RGB/HEX labels
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() => _currentColor = temp);
+                _updatePixelMap(pixelMapText);
+                Navigator.pop(context);
+              },
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+
+
+
 
   void _play() {
     if (_frames.isEmpty) return;
@@ -77,8 +145,8 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
     _playbackTimer = Timer(currentFrame.duration, () {
       if (!_isPlaying) return;
       setState(() {
-        _currentFrameIndex =
-            (_currentFrameIndex + 1) % _frames.length; // loop
+        _currentFrameIndex = (_currentFrameIndex + 1) % _frames.length; // loop
+        _pixelMap = _frames[_currentFrameIndex].pixelMap;
       });
       _scheduleNextFrame();
     });
@@ -88,7 +156,7 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
     setState(() {
       _frames.add(
         FrameData(
-          color: Colors.primaries[_frames.length % Colors.primaries.length],
+          pixelMap: PixelMap(width: 45, height: 25),
           duration: const Duration(milliseconds: 250),
         ),
       );
@@ -112,12 +180,10 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final hasFrames = _frames.isNotEmpty;
-    final currentFrame =
-        hasFrames ? _frames[_currentFrameIndex] : null;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Animation Creator'),
+        title: const Text('Frame-by-Frame Animation'),
         actions: [
           IconButton(
             onPressed: _addFrame,
@@ -128,25 +194,67 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
       ),
       body: Column(
         children: [
-          // Preview area
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: _openWheel,
+                child: const Text("Pick Color"),
+              ),
+              TextField(
+                controller: _controller,
+                decoration: const InputDecoration(
+                  labelText: 'Type text to render',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: _updatePixelMap, // live updates as you type
+              ),
+              // TEXT SIZE
+              Slider(
+                value: _pixelMapTextSize,
+                min: 10,
+                max: 200,
+                divisions: 190,
+                label: _pixelMapTextSize.round().toString(),
+                onChanged: (value) {
+                  setState(() {
+                    _pixelMapTextSize = value;
+                  });
+                },
+                onChangeEnd: (value) {
+                  setState(() {
+                    _pixelMapTextSize = value;
+                  });
+                  _updatePixelMap(pixelMapText);
+                },
+              ),
+            ]
+            ),
+
+          // === PREVIEW AREA: replaced with your pixel canvas ===
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: Card(
-                elevation: 4,
-                child: Center(
-                  child: hasFrames
-                      ? AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          width: 200,
-                          height: 200,
-                          // In a real app, replace this Container with Image(...)
-                          decoration: BoxDecoration(
-                            color: currentFrame!.color,
-                            borderRadius: BorderRadius.circular(16),
+              child: Center(
+                // The pixel canvas
+                child: AspectRatio(
+                  aspectRatio: 45 / 25, // keep the same proportions
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                    ),
+                    child: _pixelMap == null
+                        ? const Center(
+                            child: Text(
+                              'Pixel output will appear here',
+                              textAlign: TextAlign.center,
+                            ),
+                          )
+                        : CustomPaint(
+                            painter: PixelMapPainter(_pixelMap!),
+                            // `size` is provided by Layout via AspectRatio+Expanded
                           ),
-                        )
-                      : const Text('No frames yet'),
+                  ),
                 ),
               ),
             ),
@@ -158,9 +266,7 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
             child: Row(
               children: [
                 IconButton.filled(
-                  onPressed: hasFrames
-                      ? (_isPlaying ? _pause : _play)
-                      : null,
+                  onPressed: hasFrames ? (_isPlaying ? _pause : _play) : null,
                   icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
                 ),
                 const SizedBox(width: 12),
@@ -202,6 +308,7 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
                         onTap: () {
                           setState(() {
                             _currentFrameIndex = index;
+                            _pixelMap = frame.pixelMap;
                           });
                         },
                         child: AnimatedContainer(
@@ -220,17 +327,6 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // thumbnail
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Container(
-                                    // In a real app, replace with Image(image: frame.image)
-                                    color: frame.color,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
                               // Duration label
                               Text(
                                 '${frame.duration.inMilliseconds} ms',

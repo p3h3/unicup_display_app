@@ -4,13 +4,16 @@ import 'dart:ui';
 class PixelMap {
   final int width;
   final int height;
-  final List<List<Color>> pixels; // pixels[y][x]
+  List<List<Color>>? pixels; // pixels[y][x]
 
   PixelMap({
     required this.width,
     required this.height,
-    required this.pixels,
   });
+
+  fillPixels(List<List<Color>> pixelsParam){
+    pixels = pixelsParam;
+  }
 
   getRawLine(int y){
     Uint8List rawPixelData = Uint8List(width * 3);
@@ -27,9 +30,9 @@ class PixelMap {
         rawPixelData[x*3 + 2] = 0;
       }
       */
-      rawPixelData[x*3 + 0] = (pixels[y][x].r * 255).toInt();
-      rawPixelData[x*3 + 1] = (pixels[y][x].g * 255).toInt();
-      rawPixelData[x*3 + 2] = (pixels[y][x].b * 255).toInt();
+      rawPixelData[x*3 + 0] = (pixels![y][x].r * 255).toInt();
+      rawPixelData[x*3 + 1] = (pixels![y][x].g * 255).toInt();
+      rawPixelData[x*3 + 2] = (pixels![y][x].b * 255).toInt();
       
     }
 
