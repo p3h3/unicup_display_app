@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:unicup_display/animation_creator.dart';
 import 'package:unicup_display/device_screen.dart';
 import 'package:unicup_display/pixel_map.dart';
 import 'package:unicup_display/pixel_map_painter.dart';
@@ -425,6 +426,15 @@ Widget build(BuildContext context) {
           ElevatedButton(
             onPressed: pickImage,
             child: const Text("Pick Img"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AnimationCreator()),
+              );
+            },
+            child: const Text("A C"),
           ),
         ],
       ),
