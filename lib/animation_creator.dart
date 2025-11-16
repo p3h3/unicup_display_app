@@ -75,6 +75,7 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
         _pixelMap = map;
       });
 
+      _frames[_currentFrameIndex].pixelMap.fillPixels(map.pixels!);
       
     } finally {
     }
@@ -119,7 +120,17 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
   }
 
 
+  void _saveAnimation(){
+    
+  }
 
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.text = pixelMapText;
+    _updatePixelMap(pixelMapText);
+  }
 
 
   void _play() {
@@ -201,13 +212,15 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
                 onPressed: _openWheel,
                 child: const Text("Pick Color"),
               ),
-              TextField(
-                controller: _controller,
-                decoration: const InputDecoration(
-                  labelText: 'Type text to render',
-                  border: OutlineInputBorder(),
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  decoration: const InputDecoration(
+                    labelText: 'Type text to render',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: _updatePixelMap,
                 ),
-                onChanged: _updatePixelMap, // live updates as you type
               ),
               // TEXT SIZE
               Slider(
@@ -273,6 +286,11 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
                 Text('Frame: ${hasFrames ? _currentFrameIndex + 1 : 0}'
                     '/${_frames.length}'),
                 const Spacer(),
+                IconButton.filled(
+                  onPressed: _saveAnimation,
+                  icon: Icon(Icons.save),
+                ),
+                const SizedBox(width: 12),
                 Text('Total: $_totalDurationMs ms'),
               ],
             ),
