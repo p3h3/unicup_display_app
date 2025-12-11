@@ -374,7 +374,6 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
                       labelText: 'File Name:',
                       border: OutlineInputBorder(),
                     ),
-                    onChanged: _updatePixelMap,
                   ),
                 ),
               ),
