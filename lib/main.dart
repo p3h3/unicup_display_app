@@ -530,6 +530,10 @@ Widget build(BuildContext context) {
               const SizedBox(width: 6),
               Text('${hasFrames ? _currentFrameIndex + 1 : 0}'
                   '/${_frames.length}'),
+              IconButton.filled(
+                onPressed: _updateDropdownItems,
+                icon: Icon(Icons.update),
+              ),
               DropdownButton<String>(
                 value: _selectedItem,
                 hint: const Text("import"),
@@ -541,9 +545,6 @@ Widget build(BuildContext context) {
                     _selectedItem = value;
                   });
                   selectedImportFile = value; // store globally
-                },
-                onTap: () =>{
-                  _updateDropdownItems()
                 },
               ),
               IconButton.filled(

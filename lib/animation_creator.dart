@@ -48,6 +48,7 @@ class FrameData {
   // ---------------------------------------
   FrameData fromJson(Map<String, dynamic> json) {
     pixelMap = PixelMap.importJson(jsonEncode(json["pixelMap"]));
+    duration = Duration(milliseconds: json["durationMs"]);
     return FrameData(
       pixelMap: pixelMap,
       duration: Duration(milliseconds: json["durationMs"]),
@@ -169,6 +170,8 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
 
     if(_selectedItem == null){return;}
 
+    if(!(await showConfirmDialog(context, "import?"))){return;}
+
     var json = await getJsonFromDownloads(_selectedItem!);
 
     if(json == null){return;}
@@ -258,8 +261,11 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
     });
   }
 
-  void _removeFrame(int index) {
+  void _removeFrame(int index) async {
     if (_frames.length <= 1) return;
+    
+    if(!(await showConfirmDialog(context, "delete?"))){return;}
+
     setState(() {
       _frames.removeAt(index);
       if (_currentFrameIndex >= _frames.length) {
@@ -377,7 +383,7 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
 
           // Playback controls + info
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 2),
             child: Row(
               children: [
                 IconButton.filled(
@@ -388,6 +394,18 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
                 Text('${hasFrames ? _currentFrameIndex + 1 : 0}'
                     '/${_frames.length}'),
                 const Spacer(),
+                Text('T: $_totalDurationMs ms'),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Row(
+              children: [
+                IconButton.filled(
+                  onPressed: _updateDropdownItems,
+                  icon: Icon(Icons.update),
+                ),
                 DropdownButton<String>(
                   value: _selectedItem,
                   hint: const Text("import"),
@@ -400,9 +418,9 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
                     });
                     selectedImportFile = value; // store globally
                   },
-                  onTap: () =>{
+                  /*onTap: () =>{
                     _updateDropdownItems()
-                  },
+                  },*/
                 ),
                 IconButton.filled(
                   onPressed: _importFile,
@@ -413,33 +431,24 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
                   icon: Icon(Icons.save),
                 ),
                 const SizedBox(width: 6),
-                Text('T: $_totalDurationMs ms'),
               ],
-            ),
+            )
           ),
-
           const SizedBox(height: 8),
 
           // Frames list (with timings)
           SizedBox(
-            height: 180,
+            height: 120,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text(
-                    'Frames & Timings',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Expanded(
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 5.0),
                     itemCount: _frames.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    separatorBuilder: (_, __) => const SizedBox(width: 5),
                     itemBuilder: (context, index) {
                       final frame = _frames[index];
                       final isSelected = index == _currentFrameIndex;
@@ -453,10 +462,10 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
-                          width: 140,
-                          padding: const EdgeInsets.all(8),
+                          width: 150,
+                          padding: const EdgeInsets.all(1),
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               width: 2,
                               color: isSelected
@@ -494,7 +503,7 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
                                 child: IconButton(
                                   padding: EdgeInsets.zero,
                                   visualDensity: VisualDensity.compact,
-                                  iconSize: 18,
+                                  iconSize: 10,
                                   onPressed: () => _removeFrame(index),
                                   icon: const Icon(Icons.delete_outline),
                                 ),
@@ -514,5 +523,36 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
         ],
       ),
     );
+  }
+
+
+  Future<bool> showConfirmDialog(BuildContext context, String message) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false, // user must tap a button
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm'),
+          content: Text(message),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false); // user cancelled
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true); // user confirmed
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // If the dialog is dismissed by system back button etc., treat as "Cancel"
+    return result ?? false;
   }
 }
