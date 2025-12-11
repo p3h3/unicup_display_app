@@ -10,6 +10,7 @@ import 'package:unicup_display/device_screen.dart';
 import 'package:unicup_display/pixel_map.dart';
 import 'package:unicup_display/pixel_map_painter.dart';
 import 'package:unicup_display/rendering.dart';
+import 'package:unicup_display/save_local.dart';
 import 'ble_manager.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
@@ -58,7 +59,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   double _brightnessValue = 128;
 
-  double _pixelMapTextSize = 80;
+  double _pixelMapTextSize = 85;
 
   final flutterReactiveBle = FlutterReactiveBle();
 
@@ -68,13 +69,26 @@ class _MyHomePageState extends State<MyHomePage> {
 
   PixelMap? _pixelMap;
   
-  String pixelMapText = "ET-Lions";
+  String pixelMapText = "ET Lions";
 
   Color _currentColor = Colors.blue;
 
   String currentTime = "";
   Timer? timer;
   bool timeEnabed = false;
+
+
+
+  List<FrameData> _frames = [];
+
+  int _currentFrameIndex = 0;
+  Timer? _playbackTimer;
+  bool _isPlaying = false;
+
+
+  String? selectedImportFile;
+  List<String> _dropdownItems = ["none"];
+  String? _selectedItem;
 
 
   @override
@@ -104,6 +118,23 @@ class _MyHomePageState extends State<MyHomePage> {
   void dispose() {
     bleManager.dispose();
     super.dispose();
+  }
+
+  
+
+  void _updateDropdownItems() async {
+    final items = await listDownloadFilesByExtension("json");
+
+    if (!mounted) return;
+
+    setState(() {
+      _dropdownItems = items;
+
+      if (!_dropdownItems.contains(_selectedItem)) {
+        _selectedItem = null;
+        selectedImportFile = null;
+      }
+    });
   }
 
   Future<void> _sendPixelMap() async {
@@ -301,8 +332,74 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
 
+  
+  Future<void> _importFile() async {
+
+    if(_selectedItem == null){return;}
+
+    var json = await getJsonFromDownloads(_selectedItem!);
+
+    if(json == null){return;}
+
+    List<dynamic> framesJson = json["frames"];
+
+    _frames = [];
+    List<FrameData> newFrameData = [];
+    for(var i = 0; i < framesJson.length; i++){
+      var newPixelMap = PixelMap(width: 45, height: 25);
+      var newFrame = FrameData(pixelMap: newPixelMap, duration: Duration(milliseconds: 500));
+      newFrame.fromJson(framesJson[i]);
+      newFrameData.add(newFrame);
+    }
+
+    setState(() {
+      _frames = newFrameData;
+      _currentFrameIndex = 0;
+      _pixelMap = _frames.isNotEmpty ? _frames[0].pixelMap : null;
+    });
+  }
+
+
+
+  void _scheduleNextFrame() {
+    if (!_isPlaying || _frames.isEmpty) return;
+
+    final currentFrame = _frames[_currentFrameIndex];
+    _playbackTimer = Timer(currentFrame.duration, () {
+      if (!_isPlaying) return;
+      setState(() {
+        _currentFrameIndex = (_currentFrameIndex + 1) % _frames.length; // loop
+        _pixelMap = _frames[_currentFrameIndex].pixelMap;
+      });
+      _scheduleNextFrame();
+    });
+  }
+
+
+    void _play() {
+      if (_frames.isEmpty) return;
+      _playbackTimer?.cancel();
+      setState(() {
+        _isPlaying = true;
+      });
+      _scheduleNextFrame();
+    }
+
+    void _pause() {
+      _playbackTimer?.cancel();
+      setState(() {
+        _isPlaying = false;
+      });
+    }
+
+
+
+
 @override
 Widget build(BuildContext context) {
+  
+  final hasFrames = _frames.isNotEmpty;
+
   return Scaffold(
     appBar: AppBar(
       backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -424,7 +521,40 @@ Widget build(BuildContext context) {
             ),
           ),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly, // or start / center
+            mainAxisAlignment: MainAxisAlignment.center, // or start / center
+            children: [
+              IconButton.filled(
+                onPressed: hasFrames ? (_isPlaying ? _pause : _play) : null,
+                icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
+              ),
+              const SizedBox(width: 6),
+              Text('${hasFrames ? _currentFrameIndex + 1 : 0}'
+                  '/${_frames.length}'),
+              DropdownButton<String>(
+                value: _selectedItem,
+                hint: const Text("import"),
+                items: _dropdownItems
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedItem = value;
+                  });
+                  selectedImportFile = value; // store globally
+                },
+                onTap: () =>{
+                  _updateDropdownItems()
+                },
+              ),
+              IconButton.filled(
+                onPressed: _importFile,
+                icon: Icon(Icons.upload_file),
+              ),
+            ],
+          ),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center, // or start / center
             children: [
               ElevatedButton(
                 onPressed: () {

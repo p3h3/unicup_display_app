@@ -74,8 +74,7 @@ class FrameEditorScreen extends StatefulWidget {
 }
 
 class _FrameEditorScreenState extends State<FrameEditorScreen> {
-  List<FrameData> _frames = [
-  ];
+  List<FrameData> _frames = [];
 
   int _currentFrameIndex = 0;
   Timer? _playbackTimer;
@@ -87,7 +86,6 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
   String? selectedImportFile;
   List<String> _dropdownItems = ["none"];
   String? _selectedItem;
-  Timer? _updateTimer;
 
   
   final TextEditingController _controller = TextEditingController();
@@ -199,10 +197,6 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
     super.initState();
     _controller.text = pixelMapText;
     _updatePixelMap(pixelMapText);
-
-    _updateTimer = Timer.periodic(Duration(seconds: 1), (_) {
-      _updateDropdownItems();
-    });
   }
 
 
@@ -405,6 +399,9 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
                       _selectedItem = value;
                     });
                     selectedImportFile = value; // store globally
+                  },
+                  onTap: () =>{
+                    _updateDropdownItems()
                   },
                 ),
                 IconButton.filled(
