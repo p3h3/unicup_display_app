@@ -58,7 +58,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   double _brightnessValue = 128;
 
-  double _pixelMapTextSize = 60;
+  double _pixelMapTextSize = 80;
 
   final flutterReactiveBle = FlutterReactiveBle();
 
@@ -423,28 +423,34 @@ Widget build(BuildContext context) {
               ),
             ),
           ),
-
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                timeEnabed = !timeEnabed;
-              });
-            },
-            child: const Text("En/Dis Time"),
-          ),
-          ElevatedButton(
-            onPressed: pickImage,
-            child: const Text("Pick Img"),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AnimationCreator()),
-              );
-            },
-            child: const Text("A C"),
-          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly, // or start / center
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    timeEnabed = !timeEnabed;
+                  });
+                },
+                child: const Text("T"),
+              ),
+              ElevatedButton(
+                onPressed: pickImage,
+                child: const Text("Img"),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AnimationCreator(),
+                    ),
+                  );
+                },
+                child: const Text("A C"),
+              ),
+            ],
+          )
         ],
       ),
     ),
