@@ -46,9 +46,10 @@ class FrameData {
   // ---------------------------------------
   //        Import FrameData ← JSON Map
   // ---------------------------------------
-  static FrameData fromJson(Map<String, dynamic> json) {
+  FrameData fromJson(Map<String, dynamic> json) {
+    pixelMap = PixelMap.importJson(jsonEncode(json["pixelMap"]));
     return FrameData(
-      pixelMap: PixelMap.importJson(jsonEncode(json["pixelMap"])),
+      pixelMap: pixelMap,
       duration: Duration(milliseconds: json["durationMs"]),
     );
   }
@@ -64,18 +65,6 @@ String exportFramesJson(List<FrameData> frames) {
   return jsonEncode(data);
 }
 
-// ------------------------------------------------------------
-//         Import JSON STRING → LIST<FrameData>
-// ------------------------------------------------------------
-List<FrameData> importFramesJson(String jsonStr) {
-  final decoded = jsonDecode(jsonStr);
-
-  List<dynamic> framesJson = decoded["frames"];
-
-  return framesJson
-      .map((f) => FrameData.fromJson(f))
-      .toList();
-}
 
 class FrameEditorScreen extends StatefulWidget {
   const FrameEditorScreen({super.key});
@@ -85,7 +74,7 @@ class FrameEditorScreen extends StatefulWidget {
 }
 
 class _FrameEditorScreenState extends State<FrameEditorScreen> {
-  final List<FrameData> _frames = [
+  List<FrameData> _frames = [
   ];
 
   int _currentFrameIndex = 0;
@@ -96,12 +85,13 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
 
 
   String? selectedImportFile;
-  List<String> _dropdownItems = [];
+  List<String> _dropdownItems = ["none"];
   String? _selectedItem;
   Timer? _updateTimer;
 
   
   final TextEditingController _controller = TextEditingController();
+  final TextEditingController _fileNameController = TextEditingController(); 
 
   PixelMap? _pixelMap;
   
@@ -124,9 +114,11 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
       if (!mounted) return;
       setState(() {
         _pixelMap = map;
+        if(_frames.isNotEmpty){
+          _frames[_currentFrameIndex].pixelMap.fillPixels(map.pixels);
+        }
       });
 
-      _frames[_currentFrameIndex].pixelMap.fillPixels(map.pixels!);
       
     } finally {
     }
@@ -172,17 +164,33 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
 
 
   void _saveAnimation(){
-    saveJsonToDownloads(exportFramesJson(_frames), "test.json");
+    saveJsonToDownloads(exportFramesJson(_frames), _fileNameController.text + ".json");
   }
 
+  Future<void> _importFile() async {
 
-  void listFiles() async {
-    final jsonFiles = await listDownloadFilesByExtension(".json");
-    print("JSON files: $jsonFiles");
-  }
+    if(_selectedItem == null){return;}
 
-  void _importFile(){
-    // to be implemented
+    var json = await getJsonFromDownloads(_selectedItem!);
+
+    if(json == null){return;}
+
+    List<dynamic> framesJson = json["frames"];
+
+    _frames = [];
+    List<FrameData> newFrameData = [];
+    for(var i = 0; i < framesJson.length; i++){
+      var newPixelMap = PixelMap(width: 45, height: 25);
+      var newFrame = FrameData(pixelMap: newPixelMap, duration: Duration(milliseconds: 500));
+      newFrame.fromJson(framesJson[i]);
+      newFrameData.add(newFrame);
+    }
+
+    setState(() {
+      _frames = newFrameData;
+      _currentFrameIndex = 0;
+      _pixelMap = _frames.isNotEmpty ? _frames[0].pixelMap : null;
+    });
   }
 
 
@@ -192,33 +200,28 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
     _controller.text = pixelMapText;
     _updatePixelMap(pixelMapText);
 
-
-    _updateTimer = Timer.periodic(Duration(seconds: 3), (_) {
+    _updateTimer = Timer.periodic(Duration(seconds: 1), (_) {
       _updateDropdownItems();
     });
   }
 
 
   
-  void _loadInitialItems() {
-    setState(() async {
-      _dropdownItems = await listDownloadFilesByExtension("json");
-    });
-  }
 
-  void _updateDropdownItems() {
-    // Example: append timestamped items
-    setState(() async {
-      _dropdownItems = await listDownloadFilesByExtension("json");
+  void _updateDropdownItems() async {
+    final items = await listDownloadFilesByExtension("json");
 
-      // ensure selected item is still valid
+    if (!mounted) return;
+
+    setState(() {
+      _dropdownItems = items;
+
       if (!_dropdownItems.contains(_selectedItem)) {
         _selectedItem = null;
         selectedImportFile = null;
       }
     });
   }
-
 
   void _play() {
     if (_frames.isEmpty) return;
@@ -358,6 +361,24 @@ class _FrameEditorScreenState extends State<FrameEditorScreen> {
                 ),
               ),
             ),
+          ),
+
+          Row(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: TextField(
+                    controller: _fileNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'File Name:',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: _updatePixelMap,
+                  ),
+                ),
+              ),
+            ],
           ),
 
           // Playback controls + info

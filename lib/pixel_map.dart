@@ -5,12 +5,21 @@ import 'dart:ui';
 class PixelMap {
   final int width;
   final int height;
-  List<List<Color>>? pixels; // pixels[y][x]
+  late List<List<Color>> pixels; // pixels[y][x]
 
   PixelMap({
     required this.width,
     required this.height,
-  });
+  }) {
+    // 2D-Liste initialisieren: height Zeilen, width Spalten
+    pixels = List.generate(
+      height,
+      (_) => List.generate(
+        width,
+        (_) => Color(0x00000000),
+      ),
+    );
+  }
 
   fillPixels(List<List<Color>> pixelsParam){
     pixels = pixelsParam;
@@ -89,10 +98,10 @@ class PixelMap {
         (x) {
           final p = pixelData[y][x];
           return Color.fromARGB(
-            p["a"],
-            p["r"],
-            p["g"],
-            p["b"],
+            (p["a"] * 255).round(),
+            (p["r"] * 255).round(),
+            (p["g"] * 255).round(),
+            (p["b"] * 255).round(),
           );
         },
       ),

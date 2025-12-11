@@ -125,6 +125,15 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
 
+      // turn pixel map around (fucked up the mounting)
+      var pixelMapRotated = new PixelMap(width: 45, height: 25);
+
+      for (var y = 0; y < 25; y++) {
+        for (var x = 0; x < 45; x++) {
+          pixelMapRotated.pixels![25 - y][45 - x] = _pixelMap!.pixels[y][x];
+        }
+      }
+
       int rows_per_packet = ((bleManager.currentMTU - 1) / (1 + 45*3)).floor();
 
       for(int y = 0; y < 25; y += 0){
@@ -140,7 +149,7 @@ class _MyHomePageState extends State<MyHomePage> {
             continue;
           }
 
-          Uint8List lineData =  _pixelMap!.getRawLine(y);
+          Uint8List lineData =  pixelMapRotated!.getRawLine(y);
 
           data[offset] = y;
           offset += 1;
